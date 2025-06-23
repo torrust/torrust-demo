@@ -14,17 +14,12 @@ services:
         max-file: "10"
     depends_on:
       - proxy
+    network_mode: host
 
   proxy:
     image: nginx:mainline-alpine
     container_name: proxy
     restart: unless-stopped
-    networks:
-      - frontend_network
-      - backend_network
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
       - ./storage/proxy/webroot:/var/www/html
       - ./storage/proxy/etc/nginx-conf:/etc/nginx/conf.d
@@ -40,6 +35,7 @@ services:
       - index
       - tracker
       - grafana
+    network_mode: host
 
   index-gui:
     image: torrust/index-gui:develop
@@ -49,12 +45,8 @@ services:
     environment:
       - USER_ID=${USER_ID}
       - NUXT_PUBLIC_API_BASE=${TORRUST_INDEX_GUI_API_BASE_URL:-http://localhost:3001/v1}
-      - NITRO_HOST=${NITRO_HOST:-0.0.0.0}
+      - NITRO_HOST=${NITRO_HOST:-127.0.0.1}
       - NITRO_PORT=${NITRO_PORT:-3000}
-    networks:
-      - frontend_network
-    ports:
-      - 3000:3000
     volumes:
       - ./storage/index-gui/log:/var/log/torrust/index-gui:Z
     logging:
@@ -64,6 +56,7 @@ services:
     depends_on:
       - index
       - tracker
+    network_mode: host
 
   index:
     image: torrust/index:develop
@@ -77,10 +70,6 @@ services:
       - TORRUST_INDEX_CONFIG_OVERRIDE_TRACKER__TOKEN=${TORRUST_INDEX_CONFIG_OVERRIDE_TRACKER__TOKEN:-MyAccessToken}
       - TORRUST_INDEX_CONFIG_OVERRIDE_AUTH__USER_CLAIM_TOKEN_PEPPER=${TORRUST_INDEX_CONFIG_OVERRIDE_AUTH__USER_CLAIM_TOKEN_PEPPER:-MaxVerstappenWC2021}
       - TORRUST_INDEX_API_CORS_PERMISSIVE=${TORRUST_INDEX_API_CORS_PERMISSIVE:-true}
-    networks:
-      - backend_network
-    ports:
-      - 3001:3001
     volumes:
       - ./storage/index/lib:/var/lib/torrust/index:Z
       - ./storage/index/log:/var/log/torrust/index:Z
@@ -91,6 +80,7 @@ services:
         max-file: "10"
     depends_on:
       - tracker
+    network_mode: host
 
   grafana:
     image: grafana/grafana:11.4.0
@@ -99,24 +89,18 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
-    networks:
-      - backend_network
-    ports:
-      - "3100:3000"
+      - GF_SERVER_HTTP_PORT=3100
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
+    network_mode: host
 
   prometheus:
     image: prom/prometheus:v3.0.1
     container_name: prometheus
     tty: true
     restart: unless-stopped
-    networks:
-      - backend_network
-    ports:
-      - "9090:9090" # This port should not be exposed to the internet
     volumes:
       - ./storage/prometheus/etc:/etc/prometheus:Z
     logging:
@@ -125,6 +109,7 @@ services:
         max-file: "10"
     depends_on:
       - tracker
+    network_mode: host
 
   tracker:
     image: torrust/tracker:develop
@@ -136,13 +121,6 @@ services:
       - TORRUST_TRACKER_DATABASE=${TORRUST_TRACKER_DATABASE:-sqlite3}
       - TORRUST_TRACKER_CONFIG_OVERRIDE_CORE__DATABASE__DRIVER=${TORRUST_TRACKER_CONFIG_OVERRIDE_CORE__DATABASE__DRIVER:-sqlite3}
       - TORRUST_TRACKER_CONFIG_OVERRIDE_HTTP_API__ACCESS_TOKENS__ADMIN=${TORRUST_TRACKER_CONFIG_OVERRIDE_HTTP_API__ACCESS_TOKENS__ADMIN:-MyAccessToken}
-    networks:
-      - backend_network
-    ports:
-      - 6868:6868/udp
-      - 6969:6969/udp
-      - 7070:7070
-      - 1212:1212
     volumes:
       - ./storage/tracker/lib:/var/lib/torrust/tracker:Z
       - ./storage/tracker/log:/var/log/torrust/tracker:Z
@@ -151,12 +129,8 @@ services:
       options:
         max-size: "10m"
         max-file: "10"
-
-networks:
-  frontend_network: {}
-  backend_network: {}
+    network_mode: host
 
 volumes:
   mysql_data: {}
   grafana_data: {}
-

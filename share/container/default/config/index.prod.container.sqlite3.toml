@@ -9,7 +9,7 @@ schema_version = "2.0.0"
 threshold = "info"
 
 [tracker]
-api_url = "http://tracker:1212"
+api_url = "http://127.0.0.1:1212"
 listed = false
 private = false
 url = "udp://tracker.torrust-demo.com:6969"
