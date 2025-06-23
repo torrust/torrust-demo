@@ -11,6 +11,10 @@ It's also used to track issues in production.
 - HTTP Tracker: <https://tracker.torrust-demo.com/announce>
 - UDP Tracker: udp://tracker.torrust-demo.com:6969/announce
 
+Currently, the demo tracker is running on a single server with the following specifications:
+
+- Basic / 8 GB / 4 vCPUs.
+
 ### Monitoring
 
 The demo includes monitoring with Grafana dashboards for the tracker to track performance metrics, peer connections, and system health.
@@ -21,6 +25,7 @@ The demo includes monitoring with Grafana dashboards for the tracker to track pe
 
 - [Setup](docs/setup.md)
 - [Deployment](docs/deployment.md)
+- [Server Optimization](docs/server-optimization.md)
 - [Firewall](docs/firewall.md)
 - [Sample Commands](docs/sample_commands.md)
 - [Rollbacks](docs/rollbacks.md)
