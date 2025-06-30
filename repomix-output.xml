@@ -1,0 +1,3707 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+docs/
+  backups.md
+  deployment.md
+  firewall.md
+  rollbacks.md
+  sample_commands.md
+  setup.md
+share/
+  bin/
+    deploy-torrust-tracker-demo.com.sh
+    install.sh
+    ssl_renew.sh
+    time-running.sh
+    tracker-db-backup.sh
+    tracker-filtered-logs.sh
+  container/
+    default/
+      config/
+        crontab.conf
+        nginx.conf
+        prometheus.yml
+        tracker.prod.container.sqlite3.toml
+  dev/
+    home/
+      .ssh/
+        config
+  grafana/
+    dashboards/
+      metrics.json
+      README.md
+      stats.json
+.env.production
+.gitignore
+compose.yaml
+cspell.json
+project-words.txt
+README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="docs/rollbacks.md">
+# Rollbacks
+
+If you have a problems after a [deployment](deployment.md), you can rollback to the previous version of the app.
+
+1. SSH into the server.
+
+2. Check the docker images to see the previous version of the app:
+
+    ```console
+    docker images torrust/tracker
+    REPOSITORY        TAG       IMAGE ID       CREATED          SIZE
+    torrust/tracker   develop   b081a7499542   19 minutes ago   133MB
+    torrust/tracker   <none>    7dbdad453cf3   6 hours ago      133MB
+    ```
+
+3. Tag the previous version of the app with a new name (e.g. `rollback`):
+
+    ```console
+    docker tag 7dbdad453cf3 torrust/tracker:rollback
+    ```
+
+    This command tags the image with ID `7dbdad453cf3` as `torrust/tracker:rollback`.
+
+    ```console
+      docker images torrust/tracker
+        REPOSITORY        TAG        IMAGE ID       CREATED          SIZE
+        torrust/tracker   develop    b081a7499542   21 minutes ago   133MB
+        torrust/tracker   rollback   7dbdad453cf3   6 hours ago      133MB
+    ```
+
+    The `rollback` tag now points to the previous version of the app.
+
+4. Edit the `compose.yaml` file to use the new tag:
+
+    Change the line:
+
+    ```yaml
+    image: torrust/tracker:develop
+    ```
+
+    to:
+
+    ```yaml
+    image: torrust/tracker:rollback
+    ```
+
+5. Run the following command to start the previous version of the app:
+
+    ```console
+    docker compose up --build --detach
+    ```
+
+6. Check the logs of the tracker container to see if everything is working:
+
+    ```console
+    ./share/bin/tracker-filtered-logs.sh
+    ```
+</file>
+
+<file path="docs/sample_commands.md">
+# Sample Commands
+
+- `docker ps`: list containers.
+- `docker compose logs -f`: print all containers' logs.
+- `docker compose logs -f tracker`: print tracker container' logs.
+- `docker compose logs -f tracker | head -n100`: print the first 100 lines in the tracker container log.
+- `docker compose logs -f | grep "ERROR"`: print logs showing only errors.
+</file>
+
+<file path="share/bin/deploy-torrust-tracker-demo.com.sh">
+#!/bin/bash
+
+# Update the demo by updating the containers
+
+cd /home/torrust/github/torrust/torrust-tracker-demo || exit
+docker compose pull
+docker compose down
+docker compose up --build --detach
+cd ~ || exit
+</file>
+
+<file path="share/bin/time-running.sh">
+#!/bin/bash
+
+# Print the time running a given container.
+#
+# For example:
+#
+# ./bin/time-running.sh tracker
+# Container tracker has been running for 851 seconds.
+
+# Get the container ID as an argument
+container_id="${1}"
+
+# Get the start time of the container
+start_time=$(docker inspect --format='{{.State.StartedAt}}' "${container_id}")
+
+# Calculate the number of seconds the container has been running
+start_timestamp=$(date -d "${start_time}" +%s)
+current_timestamp=$(date +%s)
+seconds_running=$((current_timestamp - start_timestamp))
+
+echo "Container ${container_id} has been running for ${seconds_running} seconds."
+</file>
+
+<file path="share/container/default/config/tracker.prod.container.sqlite3.toml">
+[metadata]
+app = "torrust-tracker"
+purpose = "configuration"
+schema_version = "2.0.0"
+
+[logging]
+#threshold = "trace"
+threshold = "info"
+
+[core]
+listed = false
+private = false
+
+[core.tracker_policy]
+persistent_torrent_completed_stat = true
+
+[core.announce_policy]
+interval = 300
+interval_min = 300
+
+[core.net]
+on_reverse_proxy = true
+
+[core.database]
+driver = "sqlite3"
+path = "/var/lib/torrust/tracker/database/sqlite3.db"
+
+[[udp_trackers]]
+bind_address = "0.0.0.0:6868"
+
+[[udp_trackers]]
+bind_address = "0.0.0.0:6969"
+
+[[http_trackers]]
+bind_address = "0.0.0.0:7070"
+
+[http_api]
+bind_address = "0.0.0.0:1212"
+</file>
+
+<file path="share/dev/home/.ssh/config">
+# Sample SSH config
+Host demo
+  User torrust
+  Hostname 139.59.150.216
+  PreferredAuthentications publickey
+  IdentityFile ~/.ssh/torrust_rsa
+</file>
+
+<file path=".gitignore">
+.env
+storage/
+</file>
+
+<file path="cspell.json">
+{
+    "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+    "version": "0.2",
+    "dictionaryDefinitions": [
+        {
+            "name": "project-words",
+            "path": "./project-words.txt",
+            "addWords": true
+        }
+    ],
+    "dictionaries": [
+        "project-words"
+    ],
+    "ignorePaths": [
+        "target",
+        "/project-words.txt"
+    ]
+}
+</file>
+
+<file path="docs/backups.md">
+# Backups
+
+## Backup Tracker Database
+
+```bash
+cd /home/torrust/github/torrust/torrust-tracker-demo/
+./share/bin/tracker-db-backup.sh 
+```
+
+## Check Backups Crontab Configuration
+
+```bash
+sudo crontab -e
+```
+
+You should see the [crontab.conf](../share/container/default/config/crontab.conf) configuration file.
+
+## Check Backups
+
+```bash
+ls -alt /home/torrust/backups
+total 26618268
+-rwxr-x--- 1 root    root        2342912 May 12 07:00 backup_2025-05-12_07-00-01.db
+-rwxr-x--- 1 root    root        2342912 May 12 06:00 backup_2025-05-12_06-00-02.db
+-rwxr-x--- 1 root    root        2342912 May 12 05:00 backup_2025-05-12_05-00-01.db
+-rwxr-x--- 1 root    root        2342912 May 12 04:00 backup_2025-05-12_04-00-01.db
+```
+
+You can also check the script output with:
+
+```bash
+tail /var/log/cron.log
+```
+</file>
+
+<file path="docs/firewall.md">
+# Firewall
+
+We are using a Hetzner Firewall.
+
+![Firewall Rules](./do-firewall-configuration.png)
+
+This is especially important for Prometheus service because it does not have authentication. This should not be exposed:
+
+<http://grafana.torrust-demo.com:9090>
+
+The port 80 is not enabled but you need to temporarily enable it to generate new Let's Encrypt certificates.
+</file>
+
+<file path="docs/setup.md">
+# Setup
+
+Follow instructions on [Deploying Torrust To Production](https://torrust.com/blog/deploying-torrust-to-production).
+
+You need to also enable a [firewall](./docs/firewall.md).
+
+The application is located in the directory: `/home/torrust/github/torrust/torrust-tracker-demo`.
+
+To run docker compose commands you need to cd to the app dir:
+
+```console
+cd /home/torrust/github/torrust/torrust-tracker-demo
+```
+</file>
+
+<file path="share/bin/tracker-filtered-logs.sh">
+#!/bin/bash
+
+# It filter out known error log messages from the tracker logs
+docker compose logs -f tracker | grep -v -F -e "Invalid announce event" -e 'Connection cookie error' -e INFO -e "Invalid action" -e "Udp::run_udp_server::loop aborting request" -e "Port can't be 0" -e "Protocol identifier missing" -e "Couldn't parse action"
+</file>
+
+<file path="share/container/default/config/prometheus.yml">
+global:
+  scrape_interval: 15s # How often to scrape metrics
+
+scrape_configs:
+  - job_name: "tracker_stats"
+    metrics_path: "/api/v1/stats"
+    params:
+      token: ["MyAccessToken"]
+      format: ["prometheus"]
+    static_configs:
+      - targets: ["tracker:1212"]
+
+  - job_name: "tracker_metrics"
+    metrics_path: "/api/v1/metrics"
+    params:
+      token: ["MyAccessToken"]
+      format: ["prometheus"]
+    static_configs:
+      - targets: ["tracker:1212"]
+</file>
+
+<file path="share/grafana/dashboards/metrics.json">
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "description": "Using metric endpoint:\n\nhttps://tracker.torrust-demo.com/api/v1/metrics?token=MyAccessToken&format=prometheus",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 3,
+    "links": [],
+    "panels": [
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 0,
+                "y": 0
+            },
+            "id": 3,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "tracker_core_persistent_torrents_downloads_total{job=\"tracker_metrics\"}",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Completed",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 6,
+                "y": 0
+            },
+            "id": 1,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "ce6lwx047kutca"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "swarm_coordination_registry_torrents_total{job=\"tracker_metrics\"}",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Torrents",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 12,
+                "y": 0
+            },
+            "id": 2,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "code",
+                    "expr": "swarm_coordination_registry_peer_connections_total{job=\"tracker_metrics\", peer_role=\"seeder\"}",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Seeders",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 18,
+                "y": 0
+            },
+            "id": 4,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "swarm_coordination_registry_peer_connections_total{job=\"tracker_metrics\", peer_role=\"leecher\"}",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Leechers",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "Request per second in 15 minutes",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 9,
+                "w": 6,
+                "x": 0,
+                "y": 5
+            },
+            "id": 19,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(rate(udp_tracker_server_requests_accepted_total{job=\"tracker_metrics\", request_kind=\"connect\", server_binding_address_ip_family=\"inet\"}[15m]))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP4 Connections (per sec)",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "Request per second in 15 minutes",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 9,
+                "w": 6,
+                "x": 6,
+                "y": 5
+            },
+            "id": 20,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(rate(udp_tracker_server_requests_accepted_total{job=\"tracker_metrics\", request_kind=\"announce\", server_binding_address_ip_family=\"inet\"}[15m]))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP4 Announces (per sec)",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "Request per second in 15 minutes",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 9,
+                "w": 6,
+                "x": 12,
+                "y": 5
+            },
+            "id": 21,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(rate(udp_tracker_server_requests_accepted_total{job=\"tracker_metrics\", request_kind=\"scrape\", server_binding_address_ip_family=\"inet\"}[15m]))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP4 Scrapes (per sec)",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "Request per second in 15 minutes",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 9,
+                "w": 6,
+                "x": 18,
+                "y": 5
+            },
+            "id": 22,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(rate(udp_tracker_server_errors_total{job=\"tracker_metrics\", server_binding_address_ip_family=\"inet\"}[15m]))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP4 Errors (per sec)",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "UDP4 Average Connect Processing Time",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "ns"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 0,
+                "y": 14
+            },
+            "id": 17,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "avg(udp_tracker_server_performance_avg_processing_time_ns{job=\"tracker_metrics\", request_kind=\"connect\", server_binding_address_ip_family=\"inet\"})",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP4 Average Connect Time",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "UDP4 Average Announce Processing Time",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "ns"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 6,
+                "y": 14
+            },
+            "id": 16,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "avg(udp_tracker_server_performance_avg_processing_time_ns{job=\"tracker_metrics\", request_kind=\"announce\", server_binding_address_ip_family=\"inet\"})",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP4 Average Announce Time",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "UDP4 Average Scrape Processing Time",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "ns"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 12,
+                "y": 14
+            },
+            "id": 18,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "avg(udp_tracker_server_performance_avg_processing_time_ns{job=\"tracker_metrics\", request_kind=\"scrape\", server_binding_address_ip_family=\"inet\"})",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP4 Average Scrape Time",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "UDP4 Banned Requests (per sec)",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 18,
+                "y": 14
+            },
+            "id": 14,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "ce6lwx047kutca"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(rate(udp_tracker_server_requests_banned_total{job=\"tracker_metrics\", server_binding_address_ip_family=\"inet\"}[15m]))",
+                    "fullMetaSearch": false,
+                    "hide": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP4 Banned Requests (per sec)",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "UDP 4 requests and responses",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 13,
+                "w": 18,
+                "x": 0,
+                "y": 19
+            },
+            "id": 9,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(rate(udp_tracker_server_requests_received_total{job=\"tracker_metrics\", server_binding_address_ip_family=\"inet\"}[15m]))",
+                    "fullMetaSearch": false,
+                    "hide": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "ce6lwx047kutca"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(rate(udp_tracker_server_responses_sent_total{job=\"tracker_metrics\", server_binding_address_ip_family=\"inet\"}[15m]))",
+                    "fullMetaSearch": false,
+                    "hide": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "B",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP4 Requests and Responses (per sec)",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "UDP Banned IPs",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 6,
+                "w": 6,
+                "x": 18,
+                "y": 19
+            },
+            "id": 15,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "ce6lwx047kutca"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(udp_tracker_server_ips_banned_total{job=\"tracker_metrics\"})",
+                    "fullMetaSearch": false,
+                    "hide": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP Banned IPs",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "ce6lwx047kutca"
+            },
+            "description": "",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 7,
+                "w": 6,
+                "x": 18,
+                "y": 25
+            },
+            "id": 10,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.4.0",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "ce6lwx047kutca"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(rate(udp_tracker_server_requests_aborted_total{job=\"tracker_metrics\", server_binding_address_ip_family=\"inet\"}[15m]))",
+                    "fullMetaSearch": false,
+                    "hide": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "UDP4 aborted requests (per second)",
+            "type": "timeseries"
+        }
+    ],
+    "preload": false,
+    "schemaVersion": 40,
+    "tags": [],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-3h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Torrust Live Demo Tracker (metrics)",
+    "uid": "deogmiudufm68d",
+    "version": 50,
+    "weekStart": ""
+}
+</file>
+
+<file path="share/grafana/dashboards/README.md">
+# Grafana Dashboards Backup
+
+Backups containing the dashboard configuration for Grafana.
+
+- `stats.json`: The dashboard using metrics from the `stats` endpoint: <http://localhost:1212/api/v1/stats?token=MyAccessToken&format=prometheus>.
+- `metrics.json`: The dashboard using metrics from the `metrics` endpoint: <http://localhost:1212/api/v1/metrics?token=MyAccessToken&format=prometheus>.
+</file>
+
+<file path="share/grafana/dashboards/stats.json">
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Using stats endpoint:\n\nhttps://tracker.torrust-demo.com/api/v1/stats?token=MyAccessToken&format=prometheus",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "completed{job=\"tracker_stats\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Completed",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ce6lwx047kutca"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "torrents{job=\"tracker_stats\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Torrents",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "seeders{job=\"tracker_stats\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Seeders",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "leechers{job=\"tracker_stats\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Leechers",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "Request per second in 15 minutes",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 0,
+        "y": 5
+      },
+      "id": 19,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "rate(udp4_connections_handled{job=\"tracker_stats\"}[15m])",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "UDP4 Connections (per sec)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "Request per second in 15 minutes",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 6,
+        "y": 5
+      },
+      "id": 20,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "rate(udp4_announces_handled[15m])",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "UDP4 Announces (per sec)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "Request per second in 15 minutes",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 12,
+        "y": 5
+      },
+      "id": 21,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "rate(udp4_scrapes_handled[15m])",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "UDP4 Scrapes (per sec)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "Request per second in 15 minutes",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 18,
+        "y": 5
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "rate(udp4_errors_handled[15m])",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "UDP4 Errors (per sec)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "UDP Average Connect Processing Time",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ns"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 14
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "udp_avg_connect_processing_time_ns{job=\"tracker_stats\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "UDP Average Connect Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "UDP Average Announce Processing Time",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ns"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 14
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "udp_avg_announce_processing_time_ns{job=\"tracker_stats\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "UDP Average Announce Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "UDP Average Scrape Processing Time",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ns"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 14
+      },
+      "id": 18,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "udp_avg_scrape_processing_time_ns{job=\"tracker_stats\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "UDP Average Scrape Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "UDP banned requests (per second)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 14
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ce6lwx047kutca"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "rate(udp_requests_banned{job=\"tracker_stats\"}[15m])",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "UDP banned requests (per second)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "UDP 4 requests and responses",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 18,
+        "x": 0,
+        "y": 19
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "rate(udp4_requests{job=\"tracker_stats\"}[15m])",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ce6lwx047kutca"
+          },
+          "editorMode": "code",
+          "expr": "rate(udp4_responses[15m])",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "UDP4 requests and responses (per second)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "UDP Banned IPs",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 19
+      },
+      "id": 15,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ce6lwx047kutca"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "udp_banned_ips_total{job=\"tracker_stats\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "UDP Banned IPs",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ce6lwx047kutca"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 25
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ce6lwx047kutca"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "rate(udp_requests_aborted{job=\"tracker_stats\"}[15m])",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "UDP aborted requests (per second)",
+      "type": "timeseries"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 40,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Torrust Live Demo Tracker (stats)",
+  "uid": "de6lx6hce8fswc",
+  "version": 93,
+  "weekStart": ""
+}
+</file>
+
+<file path="docs/deployment.md">
+# Deployment
+
+1. SSH into the server.
+2. Execute the deployment script: `./bin/deploy-torrust-tracker-demo.com.sh`.
+3. Execute the smoke tests:
+
+    ```console
+    # Clone Torrust Tracker
+    git@github.com:torrust/torrust-tracker.git
+    cd torrust-tracker
+    ```
+
+    Execute the following commands to run the tracker client and checker.
+
+    Simulate a torrent announce to the tracker using UDP:
+
+    ```console
+    cargo run -p torrust-tracker-client --bin udp_tracker_client announce udp://tracker.torrust-demo.com:6969/announce 9c38422213e30bff212b30c360d26f9a02136422 | jq
+    ```
+
+    Simulate a torrent scrape to the tracker using HTTP:
+
+    ```console
+    cargo run -p torrust-tracker-client --bin http_tracker_client announce https://tracker.torrust-demo.com 9c38422213e30bff212b30c360d26f9a02136422 | jq
+    ```
+
+    Make a request to the health check endpoint:
+
+    ```console
+    TORRUST_CHECKER_CONFIG='{
+        "udp_trackers": ["udp://tracker.torrust-demo.com:6969/announce"],
+        "http_trackers": ["https://tracker.torrust-demo.com"],
+        "health_checks": ["https://tracker.torrust-demo.com/api/health_check"]
+    }' cargo run -p torrust-tracker-client --bin tracker_checker
+
+    ```
+
+4. Check the logs of the tracker container to see if everything is working:
+
+    ```console
+    ./share/bin/tracker-filtered-logs.sh
+    ```
+</file>
+
+<file path="share/bin/tracker-db-backup.sh">
+#!/bin/bash
+
+# Backup the Index SQLite database
+
+# Define the directory where backups will be stored
+BACKUP_DIR="/home/torrust/backups"
+
+# Define the SQLite database file's path
+DATABASE_FILE="/home/torrust/github/torrust/torrust-tracker-demo/storage/tracker/lib/database/sqlite3.db"
+
+# Create a timestamped backup filename
+BACKUP_FILE="$BACKUP_DIR/tracker_backup_$(date +%Y-%m-%d_%H-%M-%S).db"
+
+# Copy the SQLite database file to create a backup
+cp $DATABASE_FILE "$BACKUP_FILE"
+
+# Find and remove backups older than 7 days
+find $BACKUP_DIR -type f -name "tracker_backup_*.db" -mtime +7 -exec rm -f {} \;
+</file>
+
+<file path="share/container/default/config/crontab.conf">
+0 12 * * * /home/torrust/github/torrust/torrust-tracker-demo/share/bin/ssl_renew.sh       >> /var/log/cron.log 2>&1
+0  * * * * /home/torrust/github/torrust/torrust-tracker-demo/share/bin/tracker-db-backup.sh >> /var/log/cron.log 2>&1
+</file>
+
+<file path=".env.production">
+USER_ID=1000
+
+# Tracker
+TORRUST_TRACKER_CONFIG_TOML=
+TORRUST_TRACKER_CONFIG_OVERRIDE_HTTP_API__ACCESS_TOKENS__ADMIN='MyAccessToken'
+
+# Grafana
+GF_SECURITY_ADMIN_USER=admin
+GF_SECURITY_ADMIN_PASSWORD=admin
+</file>
+
+<file path="project-words.txt">
+AECDH
+AESGCM
+certbot
+ECDH
+fullchain
+letsencrypt
+mailcatcher
+nosniff
+NUXT
+privkey
+publickey
+rwxr
+SAMEORIGIN
+secp
+webroot
+</file>
+
+<file path="share/bin/install.sh">
+#!/bin/bash
+
+if ! [ -f "./.env" ]; then
+	echo "Creating compose .env './.env'"
+	cp .env.production .env
+fi
+
+## Proxy
+
+mkdir -p ./storage/proxy/etc/nginx-conf
+mkdir -p ./storage/proxy/webroot
+mkdir -p ./storage/dhparam
+
+if ! [ -f "./storage/proxy/etc/nginx-conf/nginx.conf" ]; then
+	echo "Creating proxy config file: './storage/proxy/etc/nginx-conf/nginx.conf'"
+	cp ./share/container/default/config/nginx.conf ./storage/proxy/etc/nginx-conf/nginx.conf
+fi
+
+## Certbot
+
+mkdir -p ./storage/certbot/etc
+mkdir -p ./storage/certbot/lib
+
+## Tracker
+
+# Generate the Tracker sqlite database directory and file if it does not exist
+mkdir -p ./storage/tracker/lib/database
+
+if ! [ -f "./storage/tracker/lib/database/sqlite3.db" ]; then
+	echo "Creating tracker database: './storage/tracker/lib/database/sqlite3.db'"
+	sqlite3 "./storage/tracker/lib/database/sqlite3.db" "VACUUM;"
+fi
+
+mkdir -p ./storage/tracker/etc
+
+if ! [ -f "./storage/tracker/etc/tracker.prod.container.sqlite3.toml" ]; then
+	echo "Crating tracker configuration: './storage/tracker/etc/tracker.toml'"
+	cp ./share/container/default/config/tracker.prod.container.sqlite3.toml ./storage/tracker/etc/tracker.toml
+fi
+
+## Prometheus
+
+mkdir -p ./storage/prometheus/etc
+
+if ! [ -f "./storage/prometheus/etc/prometheus.yml" ]; then
+	echo "Creating prometheus config file: './storage/prometheus/etc/prometheus.yml'"
+	cp ./share/container/default/config/prometheus.yml ./storage/prometheus/etc/prometheus.yml
+fi
+</file>
+
+<file path="share/bin/ssl_renew.sh">
+#!/bin/bash
+
+COMPOSE="/usr/bin/docker compose --ansi never"
+DOCKER="/usr/bin/docker"
+
+cd /home/torrust/github/torrust/torrust-tracker-demo || exit
+
+# Run this just for testing purposes
+#$COMPOSE run certbot renew --dry-run && $COMPOSE kill -s SIGHUP proxy
+
+# Renew certificates that are close to expiring and restart proxy server
+# to reload Nginx configuration.
+$COMPOSE run certbot renew && $COMPOSE --ansi never restart proxy
+
+$DOCKER system prune -af
+</file>
+
+<file path="share/container/default/config/nginx.conf">
+server
+{
+    listen 80;
+    listen [::]:80;
+
+    root /var/www/html;
+    index index.html index.htm index.nginx-debian.html;
+
+    server_name tracker.torrust-demo.com;
+
+    location /api/
+    {
+            proxy_pass http://tracker:1212/api/;
+    }
+
+    location /
+    {
+            proxy_pass http://tracker:7070;
+    }
+
+    location ~ /.well-known/acme-challenge
+    {
+            allow all;
+            root /var/www/html;
+    }
+}
+
+server
+{
+    listen 80;
+    listen [::]:80;
+
+    root /var/www/html;
+    index index.html index.htm index.nginx-debian.html;
+
+    server_name grafana.torrust-demo.com;
+
+    location /
+    {
+            proxy_pass http://grafana:3000;
+    }
+
+    location ~ /.well-known/acme-challenge
+    {
+            allow all;
+            root /var/www/html;
+    }
+}
+
+#server
+#{
+#    listen 443 ssl http2;
+#    listen [::]:443 ssl http2;
+#    server_name tracker.torrust-demo.com;
+#
+#    server_tokens off;
+#
+#    ssl_certificate /etc/letsencrypt/live/tracker.torrust-demo.com/fullchain.pem;
+#    ssl_certificate_key /etc/letsencrypt/live/tracker.torrust-demo.com/privkey.pem;
+#
+#    ssl_buffer_size 8k;
+#
+#    ssl_dhparam /etc/ssl/certs/dhparam-2048.pem;
+#
+#    ssl_protocols TLSv1.2;
+#    ssl_prefer_server_ciphers on;
+#
+#    ssl_ciphers ECDH+AESGCM:ECDH+AES256:ECDH+AES128:DH+3DES:!ADH:!AECDH:!MD5;
+#
+#    ssl_ecdh_curve secp384r1;
+#    ssl_session_tickets off;
+#
+#    ssl_stapling on;
+#    ssl_stapling_verify on;
+#    resolver 8.8.8.8;
+#
+#    location /api/
+#    {
+#        try_files $uri @tracker-api;
+#    }
+#
+#    location /
+#    {
+#        try_files $uri @tracker-http;
+#    }
+#
+#    location @tracker-api
+#    {
+#        proxy_pass http://tracker:1212;
+#        add_header X-Frame-Options "SAMEORIGIN" always;
+#        add_header X-XSS-Protection "1; mode=block" always;
+#        add_header X-Content-Type-Options "nosniff" always;
+#        add_header Referrer-Policy "no-referrer-when-downgrade" always;
+#        add_header Content-Security-Policy "default-src * data: 'unsafe-eval' 'unsafe-inline'" always;
+#        #add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+#        # enable strict transport security only if you understand the implications
+#    }
+#
+#    location @tracker-http
+#    {
+#        proxy_pass http://tracker:7070;
+#        add_header X-Frame-Options "SAMEORIGIN" always;
+#        add_header X-XSS-Protection "1; mode=block" always;
+#        add_header X-Content-Type-Options "nosniff" always;
+#        add_header Referrer-Policy "no-referrer-when-downgrade" always;
+#        add_header Content-Security-Policy "default-src * data: 'unsafe-eval' 'unsafe-inline'" always;
+#        #add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+#        # enable strict transport security only if you understand the implications
+#
+#    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#    }
+#
+#    root /var/www/html;
+#    index index.html index.htm index.nginx-debian.html;
+#}
+
+## This is required to proxy Grafana Live WebSocket connections.
+#map $http_upgrade $connection_upgrade {
+#  default upgrade;
+#  '' close;
+#}
+#
+#upstream grafana {
+#  server grafana:3000;
+#}
+#
+#server
+#{
+#        listen 443 ssl http2;
+#        listen [::]:443 ssl http2;
+#        server_name grafana.torrust-demo.com;
+#
+#        server_tokens off;
+#
+#        ssl_certificate /etc/letsencrypt/live/grafana.torrust-demo.com/fullchain.pem;
+#        ssl_certificate_key /etc/letsencrypt/live/grafana.torrust-demo.com/privkey.pem;
+#
+#        ssl_buffer_size 8k;
+#
+#        ssl_dhparam /etc/ssl/certs/dhparam-2048.pem;
+#
+#        ssl_protocols TLSv1.2;
+#        ssl_prefer_server_ciphers on;
+#
+#        ssl_ciphers ECDH+AESGCM:ECDH+AES256:ECDH+AES128:DH+3DES:!ADH:!AECDH:!MD5;
+#
+#        ssl_ecdh_curve secp384r1;
+#        ssl_session_tickets off;
+#
+#        ssl_stapling on;
+#        ssl_stapling_verify on;
+#        resolver 8.8.8.8;
+#
+#        location / {
+#                proxy_set_header Host $host;
+#                proxy_pass http://grafana;
+#        }
+#
+#        # Proxy Grafana Live WebSocket connections.
+#        location /api/live/ {
+#                proxy_http_version 1.1;
+#                proxy_set_header Upgrade $http_upgrade;
+#                proxy_set_header Connection $connection_upgrade;
+#                proxy_set_header Host $host;
+#                proxy_pass http://grafana;
+#        }
+#
+#        root /var/www/html;
+#        index index.html index.htm index.nginx-debian.html;
+#}
+</file>
+
+<file path="compose.yaml">
+---
+name: torrust
+services:
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./storage/proxy/webroot:/var/www/html
+      - ./storage/certbot/etc:/etc/letsencrypt
+      - ./storage/certbot/lib:/var/lib/letsencrypt
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+    depends_on:
+      - proxy
+
+  proxy:
+    image: nginx:mainline-alpine
+    container_name: proxy
+    restart: unless-stopped
+    networks:
+      - frontend_network
+      - backend_network
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./storage/proxy/webroot:/var/www/html
+      - ./storage/proxy/etc/nginx-conf:/etc/nginx/conf.d
+      - ./storage/certbot/etc:/etc/letsencrypt
+      - ./storage/certbot/lib:/var/lib/letsencrypt
+      - ./storage/dhparam:/etc/ssl/certs
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+    depends_on:
+      - index-gui
+      - index
+      - tracker
+      - grafana
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
+    networks:
+      - backend_network
+    ports:
+      - "3100:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    container_name: prometheus
+    tty: true
+    restart: unless-stopped
+    networks:
+      - backend_network
+    ports:
+      - "9090:9090" # This port should not be exposed to the internet
+    volumes:
+      - ./storage/prometheus/etc:/etc/prometheus:Z
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+    depends_on:
+      - tracker
+
+  tracker:
+    image: torrust/tracker:develop
+    container_name: tracker
+    tty: true
+    restart: unless-stopped
+    environment:
+      - USER_ID=${USER_ID}
+      - TORRUST_TRACKER_DATABASE=${TORRUST_TRACKER_DATABASE:-sqlite3}
+      - TORRUST_TRACKER_CONFIG_OVERRIDE_CORE__DATABASE__DRIVER=${TORRUST_TRACKER_CONFIG_OVERRIDE_CORE__DATABASE__DRIVER:-sqlite3}
+      - TORRUST_TRACKER_CONFIG_OVERRIDE_HTTP_API__ACCESS_TOKENS__ADMIN=${TORRUST_TRACKER_CONFIG_OVERRIDE_HTTP_API__ACCESS_TOKENS__ADMIN:-MyAccessToken}
+    networks:
+      - backend_network
+    ports:
+      - 6868:6868/udp
+      - 6969:6969/udp
+      - 7070:7070
+      - 1212:1212
+    volumes:
+      - ./storage/tracker/lib:/var/lib/torrust/tracker:Z
+      - ./storage/tracker/log:/var/log/torrust/tracker:Z
+      - ./storage/tracker/etc:/etc/torrust/tracker:Z
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+networks:
+  frontend_network: {}
+  backend_network: {}
+
+volumes:
+  mysql_data: {}
+  grafana_data: {}
+</file>
+
+<file path="README.md">
+# Torrust Tracker Demo
+
+This repo contains all the configuration needed to run the live Torrust Tracker demo.
+
+It's also used to track issues in production.
+
+> IMPORTANT: We are in the process of [splitting the Torrust Demo repo into two repos](https://github.com/torrust/torrust-demo/issues/79). This will allow us to deploy both services independently and it would make easier for users who only want to setup the tracker to re-use this setup. The content of this repo may change drastically in the future.
+
+## Demo tracker
+
+- HTTP Tracker: <https://tracker.torrust-demo.com/announce>
+- UDP Tracker: udp://tracker.torrust-demo.com:6969/announce
+
+### Monitoring
+
+The demo includes monitoring with Grafana dashboards for the tracker to track performance metrics, peer connections, and system health.
+
+![Grafana Dashboard](docs/media/torrust-tracker-grafana-dashboard.png)
+
+## Documentation
+
+- [Setup](docs/setup.md)
+- [Deployment](docs/deployment.md)
+- [Firewall](docs/firewall.md)
+- [Sample Commands](docs/sample_commands.md)
+- [Rollbacks](docs/rollbacks.md)
+- [Backups](docs/backups.md)
+</file>
+
+</files>

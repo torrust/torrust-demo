@@ -9,6 +9,7 @@ nosniff
 NUXT
 privkey
 publickey
+repomix
 rwxr
 SAMEORIGIN
 secp
