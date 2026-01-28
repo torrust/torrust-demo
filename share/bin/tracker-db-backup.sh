@@ -1,6 +1,11 @@
 #!/bin/bash
 
-# Backup the Index SQLite database
+# Backup the Tracker SQLite database
+#
+# NOTE: This script is NOT scheduled in crontab due to the large database size (~17GB).
+# The Tracker DB relies on Digital Ocean weekly droplet backups instead.
+# This script is available for manual backups if needed.
+# See: https://github.com/torrust/torrust-demo/issues/49
 
 # Define the directory where backups will be stored
 BACKUP_DIR="/home/torrust/backups"
