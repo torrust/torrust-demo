@@ -163,6 +163,10 @@ Backups run via cron (see `share/container/default/config/crontab.conf`):
 
 Backup location: `/home/torrust/backups`
 
+**Backup Method**: Both backup scripts use SQLite's `.backup` command instead of
+`cp` to ensure backup consistency. This guarantees data integrity even with
+concurrent writes, which is critical for high-traffic production systems.
+
 ```bash
 # Manual backup
 ./share/bin/index-db-backup.sh
