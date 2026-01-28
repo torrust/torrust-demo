@@ -8,13 +8,30 @@
 - 7-day retention period
 - Small database size (~2.3 MB)
 - Location: `/home/torrust/backups`
+- Uses SQLite's `.backup` command for consistency
 
 **Tracker Database (Manual Only)**:
 
 - NOT scheduled in cron due to large size (~17GB)
 - Relies on Digital Ocean weekly droplet backups
 - Manual backup script available if needed: `./share/bin/tracker-db-backup.sh`
+- Uses SQLite's `.backup` command for consistency
 - See [Issue #49](https://github.com/torrust/torrust-demo/issues/49) for details
+
+## Backup Method
+
+Both backup scripts use SQLite's `.backup` command instead of `cp` to ensure
+backup consistency. The `.backup` command:
+
+- Guarantees consistency even with concurrent writes to the database
+- Uses proper page-level locking mechanisms
+- Handles WAL (Write-Ahead Logging) mode databases automatically
+- Automatically restarts if the source database is modified mid-backup
+
+This is critical for production systems with high traffic, where the probability
+of writes occurring during backup is very high.
+
+See: [SQLite Backup API Documentation](https://www.sqlite.org/backup.html)
 
 ## Backup Index Database
 
@@ -36,7 +53,8 @@ cd /home/torrust/github/torrust/torrust-demo/
 ./share/bin/tracker-db-backup.sh
 ```
 
-**Note**: Due to the large size (~17GB), tracker backups are not automated. Use Digital Ocean droplet backups for regular snapshots.
+**Note**: Due to the large size (~17GB), tracker backups are not automated.
+Use Digital Ocean droplet backups for regular snapshots.
 
 ## Check Backups Crontab Configuration
 
@@ -44,7 +62,9 @@ cd /home/torrust/github/torrust/torrust-demo/
 sudo crontab -e
 ```
 
-You should see the [crontab.conf](../share/container/default/config/crontab.conf) configuration file.
+You should see the
+[crontab.conf](../share/container/default/config/crontab.conf) configuration
+file.
 
 ## Check Backups
 
