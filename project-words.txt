@@ -9,6 +9,11 @@ nosniff
 NUXT
 privkey
 publickey
+qbittorrent
+repomix
 SAMEORIGIN
 secp
+Torrust
+TORRUST
+torrust
 webroot
