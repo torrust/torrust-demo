@@ -1,8 +1,10 @@
 AECDH
 AESGCM
+btih
 certbot
 ECDH
 fullchain
+infohash
 letsencrypt
 mailcatcher
 nosniff
@@ -14,8 +16,8 @@ repomix
 rwxr
 SAMEORIGIN
 secp
+torrust
 Torrust
 TORRUST
-torrust
 webroot
 zstd
